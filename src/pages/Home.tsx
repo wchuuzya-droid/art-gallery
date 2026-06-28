@@ -1,37 +1,12 @@
 import { Link } from "react-router-dom";
-import { ArrowRight, Star, Eye, TrendingUp } from "lucide-react";
-
-const featuredArt = [
-  {
-    id: 1,
-    title: "Violet Horizon",
-    artist: "Maya Chen",
-    medium: "Oil on Canvas",
-    image: "https://images.unsplash.com/photo-1541961017774-22349e4a1262?w=600&h=400&fit=crop",
-  },
-  {
-    id: 2,
-    title: "Ethereal Dreams",
-    artist: "Lucas Rivera",
-    medium: "Digital Art",
-    image: "https://images.unsplash.com/photo-1578301978693-85fa9c0320b9?w=600&h=400&fit=crop",
-  },
-  {
-    id: 3,
-    title: "Abstract Flow",
-    artist: "Aisha Patel",
-    medium: "Acrylic",
-    image: "https://images.unsplash.com/photo-1549490349-8643362247b5?w=600&h=400&fit=crop",
-  },
-];
-
-const stats = [
-  { icon: Star, label: "Featured Artists", value: "120+" },
-  { icon: Eye, label: "Monthly Visitors", value: "45K" },
-  { icon: TrendingUp, label: "Artworks Sold", value: "3,200" },
-];
+import { ArrowRight, Star, Eye, TrendingUp, Loader2 } from "lucide-react";
+import { useFeaturedArtworks, useArtworkStats } from "../hooks/useArtworks";
 
 function Home() {
+  const { artworks: featuredArt, loading: featuredLoading } =
+    useFeaturedArtworks();
+  const { count: artworkCount, loading: statsLoading } = useArtworkStats();
+
   return (
     <div>
       {/* Hero */}
@@ -43,8 +18,8 @@ function Home() {
               <span className="text-purple-500">Vision</span>
             </h1>
             <p className="text-lg text-purple-600 mb-8 max-w-lg">
-              Discover breathtaking artworks from world-class artists. Browse our
-              curated exhibits and find the piece that speaks to your soul.
+              Discover breathtaking artworks from world-class artists. Browse
+              our curated exhibits and find the piece that speaks to your soul.
             </p>
             <div className="flex gap-4">
               <Link
@@ -72,8 +47,10 @@ function Home() {
               />
             </div>
             <div className="absolute -bottom-6 -left-6 bg-white rounded-xl p-4 shadow-lg border border-purple-100">
-              <p className="text-sm text-purple-400 font-medium">This Month</p>
-              <p className="text-2xl font-bold text-purple-700">24 New Works</p>
+              <p className="text-sm text-purple-400 font-medium">Collection</p>
+              <p className="text-2xl font-bold text-purple-700">
+                {statsLoading ? "..." : `${artworkCount} Works`}
+              </p>
             </div>
           </div>
         </div>
@@ -82,7 +59,23 @@ function Home() {
       {/* Stats */}
       <section className="py-16 px-6 bg-white">
         <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8">
-          {stats.map((stat) => {
+          {[
+            {
+              icon: Star,
+              label: "Featured Artists",
+              value: "120+",
+            },
+            {
+              icon: Eye,
+              label: "Monthly Visitors",
+              value: "45K",
+            },
+            {
+              icon: TrendingUp,
+              label: "Artworks Listed",
+              value: statsLoading ? "..." : artworkCount.toString(),
+            },
+          ].map((stat) => {
             const Icon = stat.icon;
             return (
               <div
@@ -90,7 +83,9 @@ function Home() {
                 className="text-center p-6 rounded-xl bg-purple-50 border border-purple-100"
               >
                 <Icon className="w-8 h-8 text-purple-500 mx-auto mb-3" />
-                <p className="text-3xl font-bold text-purple-800">{stat.value}</p>
+                <p className="text-3xl font-bold text-purple-800">
+                  {stat.value}
+                </p>
                 <p className="text-sm text-purple-400 mt-1">{stat.label}</p>
               </div>
             );
@@ -110,31 +105,43 @@ function Home() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {featuredArt.map((art) => (
-              <div
-                key={art.id}
-                className="group rounded-2xl overflow-hidden bg-white border border-purple-100 shadow-sm hover:shadow-lg hover:shadow-purple-100 transition-all"
-              >
-                <div className="overflow-hidden">
-                  <img
-                    src={art.image}
-                    alt={art.title}
-                    className="w-full h-64 object-cover group-hover:scale-105 transition-transform duration-500"
-                  />
+          {featuredLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-8 h-8 text-purple-400 animate-spin" />
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              {featuredArt.map((art) => (
+                <div
+                  key={art.id}
+                  className="group rounded-2xl overflow-hidden bg-white border border-purple-100 shadow-sm hover:shadow-lg hover:shadow-purple-100 transition-all"
+                >
+                  <div className="overflow-hidden">
+                    {art.image_url ? (
+                      <img
+                        src={art.image_url}
+                        alt={art.title}
+                        className="w-full h-64 object-cover group-hover:scale-105 transition-transform duration-500"
+                      />
+                    ) : (
+                      <div className="w-full h-64 bg-purple-100 flex items-center justify-center">
+                        <span className="text-purple-300">No image</span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="p-5">
+                    <h3 className="text-lg font-semibold text-purple-800">
+                      {art.title}
+                    </h3>
+                    <p className="text-sm text-purple-400 mt-1">{art.artist}</p>
+                    <span className="inline-block mt-3 text-xs font-medium px-3 py-1 rounded-full bg-purple-100 text-purple-600">
+                      {art.medium ?? art.category}
+                    </span>
+                  </div>
                 </div>
-                <div className="p-5">
-                  <h3 className="text-lg font-semibold text-purple-800">
-                    {art.title}
-                  </h3>
-                  <p className="text-sm text-purple-400 mt-1">{art.artist}</p>
-                  <span className="inline-block mt-3 text-xs font-medium px-3 py-1 rounded-full bg-purple-100 text-purple-600">
-                    {art.medium}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
 
           <div className="text-center mt-12">
             <Link
@@ -159,7 +166,7 @@ function Home() {
             around the world.
           </p>
           <Link
-            to="/admin"
+            to="/login"
             className="inline-flex items-center gap-2 px-8 py-4 bg-white text-purple-700 rounded-xl font-semibold no-underline hover:bg-purple-50 transition-colors shadow-lg"
           >
             Get Started

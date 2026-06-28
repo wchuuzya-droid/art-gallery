@@ -1,61 +1,95 @@
 import { useState } from "react";
-import { Plus, Pencil, Trash2, Image } from "lucide-react";
-
-interface ArtItem {
-  id: number;
-  title: string;
-  artist: string;
-  category: string;
-  price: string;
-  status: "Published" | "Draft";
-}
-
-const initialArt: ArtItem[] = [
-  { id: 1, title: "Violet Horizon", artist: "Maya Chen", category: "Paintings", price: "$2,400", status: "Published" },
-  { id: 2, title: "Ethereal Dreams", artist: "Lucas Rivera", category: "Digital", price: "$1,800", status: "Published" },
-  { id: 3, title: "Abstract Flow", artist: "Aisha Patel", category: "Paintings", price: "$3,200", status: "Draft" },
-  { id: 4, title: "Neon Pulse", artist: "David Kim", category: "Digital", price: "$950", status: "Published" },
-  { id: 5, title: "Golden Hour", artist: "Sofia Laurent", category: "Photography", price: "$1,200", status: "Published" },
-  { id: 6, title: "Marble Whisper", artist: "Takeshi Mori", category: "Sculpture", price: "$5,500", status: "Draft" },
-];
+import { Plus, Pencil, Trash2, Image, Upload, Loader2 } from "lucide-react";
+import { useArtworks } from "../hooks/useArtworks";
+import { useImageUpload } from "../hooks/useImageUpload";
 
 function Admin() {
-  const [artItems, setArtItems] = useState<ArtItem[]>(initialArt);
+  const { artworks, loading, addArtwork, deleteArtwork, toggleStatus } =
+    useArtworks();
+  const { upload, uploading } = useImageUpload();
   const [showForm, setShowForm] = useState(false);
-  const [formData, setFormData] = useState({ title: "", artist: "", category: "Paintings", price: "" });
+  const [formData, setFormData] = useState({
+    title: "",
+    artist: "",
+    category: "Paintings",
+    price: "",
+    medium: "",
+  });
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
-  const handleAdd = () => {
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImageFile(file);
+    setImagePreview(URL.createObjectURL(file));
+  };
+
+  const handleAdd = async () => {
     if (!formData.title || !formData.artist || !formData.price) return;
-    const newItem: ArtItem = {
-      id: Date.now(),
-      ...formData,
+    setSaving(true);
+
+    let imageUrl: string | null = null;
+    if (imageFile) {
+      imageUrl = await upload(imageFile);
+    }
+
+    const priceNum = parseFloat(formData.price.replace(/[$,]/g, ""));
+
+    await addArtwork({
+      title: formData.title,
+      artist: formData.artist,
+      category: formData.category,
+      price: isNaN(priceNum) ? 0 : priceNum,
+      medium: formData.medium || null,
+      image_url: imageUrl,
       status: "Draft",
-    };
-    setArtItems([newItem, ...artItems]);
-    setFormData({ title: "", artist: "", category: "Paintings", price: "" });
+    });
+
+    setFormData({
+      title: "",
+      artist: "",
+      category: "Paintings",
+      price: "",
+      medium: "",
+    });
+    setImageFile(null);
+    setImagePreview(null);
     setShowForm(false);
+    setSaving(false);
   };
 
-  const handleDelete = (id: number) => {
-    setArtItems(artItems.filter((item) => item.id !== id));
+  const handleDelete = async (id: string) => {
+    await deleteArtwork(id);
   };
 
-  const toggleStatus = (id: number) => {
-    setArtItems(
-      artItems.map((item) =>
-        item.id === id
-          ? { ...item, status: item.status === "Published" ? "Draft" : "Published" }
-          : item
-      )
+  const handleToggleStatus = async (id: string) => {
+    await toggleStatus(id);
+  };
+
+  const formatPrice = (price: number) => {
+    return `$${price.toLocaleString()}`;
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-8 h-8 text-purple-400 animate-spin" />
+      </div>
     );
-  };
+  }
 
   return (
     <div>
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-purple-900">Manage Artworks</h1>
-          <p className="text-purple-400 text-sm mt-1">Add, edit and manage your art collection</p>
+          <h1 className="text-2xl font-bold text-purple-900">
+            Manage Artworks
+          </h1>
+          <p className="text-purple-400 text-sm mt-1">
+            Add, edit and manage your art collection
+          </p>
         </div>
         <button
           onClick={() => setShowForm(!showForm)}
@@ -66,7 +100,6 @@ function Admin() {
         </button>
       </div>
 
-      {/* Add Form */}
       {showForm && (
         <div className="bg-white rounded-xl border border-purple-100 p-6 mb-8">
           <h3 className="text-lg font-semibold text-purple-800 mb-4 flex items-center gap-2">
@@ -78,19 +111,25 @@ function Admin() {
               type="text"
               placeholder="Title"
               value={formData.title}
-              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, title: e.target.value })
+              }
               className="px-4 py-2.5 rounded-lg border border-purple-200 text-sm text-purple-800 placeholder:text-purple-300 focus:outline-none focus:ring-2 focus:ring-purple-400"
             />
             <input
               type="text"
               placeholder="Artist"
               value={formData.artist}
-              onChange={(e) => setFormData({ ...formData, artist: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, artist: e.target.value })
+              }
               className="px-4 py-2.5 rounded-lg border border-purple-200 text-sm text-purple-800 placeholder:text-purple-300 focus:outline-none focus:ring-2 focus:ring-purple-400"
             />
             <select
               value={formData.category}
-              onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, category: e.target.value })
+              }
               className="px-4 py-2.5 rounded-lg border border-purple-200 text-sm text-purple-800 focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white"
             >
               <option>Paintings</option>
@@ -101,21 +140,63 @@ function Admin() {
             </select>
             <input
               type="text"
-              placeholder="Price (e.g., $1,200)"
+              placeholder="Price (e.g., 1200)"
               value={formData.price}
-              onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, price: e.target.value })
+              }
               className="px-4 py-2.5 rounded-lg border border-purple-200 text-sm text-purple-800 placeholder:text-purple-300 focus:outline-none focus:ring-2 focus:ring-purple-400"
             />
+            <input
+              type="text"
+              placeholder="Medium (e.g., Oil on Canvas)"
+              value={formData.medium}
+              onChange={(e) =>
+                setFormData({ ...formData, medium: e.target.value })
+              }
+              className="px-4 py-2.5 rounded-lg border border-purple-200 text-sm text-purple-800 placeholder:text-purple-300 focus:outline-none focus:ring-2 focus:ring-purple-400"
+            />
+            <div className="flex items-center gap-3">
+              <label className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-dashed border-purple-300 text-sm text-purple-500 cursor-pointer hover:bg-purple-50 transition-colors">
+                <Upload className="w-4 h-4" />
+                {imageFile ? imageFile.name : "Upload Image"}
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageChange}
+                  className="hidden"
+                />
+              </label>
+              {imagePreview && (
+                <img
+                  src={imagePreview}
+                  alt="Preview"
+                  className="w-10 h-10 rounded-lg object-cover"
+                />
+              )}
+            </div>
           </div>
           <div className="flex gap-3 mt-4">
             <button
               onClick={handleAdd}
-              className="px-5 py-2.5 bg-purple-600 text-white rounded-lg font-medium cursor-pointer border-0 hover:bg-purple-700 transition-colors text-sm"
+              disabled={saving || uploading}
+              className="px-5 py-2.5 bg-purple-600 text-white rounded-lg font-medium cursor-pointer border-0 hover:bg-purple-700 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
-              Save Artwork
+              {saving || uploading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                "Save Artwork"
+              )}
             </button>
             <button
-              onClick={() => setShowForm(false)}
+              onClick={() => {
+                setShowForm(false);
+                setImageFile(null);
+                setImagePreview(null);
+              }}
               className="px-5 py-2.5 bg-purple-100 text-purple-600 rounded-lg font-medium cursor-pointer border-0 hover:bg-purple-200 transition-colors text-sm"
             >
               Cancel
@@ -124,29 +205,60 @@ function Admin() {
         </div>
       )}
 
-      {/* Table */}
       <div className="bg-white rounded-xl border border-purple-100 overflow-hidden">
         <table className="w-full">
           <thead>
             <tr className="border-b border-purple-100 bg-purple-50/50">
-              <th className="text-left py-3 px-5 text-xs font-semibold text-purple-500 uppercase tracking-wider">Title</th>
-              <th className="text-left py-3 px-5 text-xs font-semibold text-purple-500 uppercase tracking-wider">Artist</th>
-              <th className="text-left py-3 px-5 text-xs font-semibold text-purple-500 uppercase tracking-wider">Category</th>
-              <th className="text-left py-3 px-5 text-xs font-semibold text-purple-500 uppercase tracking-wider">Price</th>
-              <th className="text-left py-3 px-5 text-xs font-semibold text-purple-500 uppercase tracking-wider">Status</th>
-              <th className="text-right py-3 px-5 text-xs font-semibold text-purple-500 uppercase tracking-wider">Actions</th>
+              <th className="text-left py-3 px-5 text-xs font-semibold text-purple-500 uppercase tracking-wider">
+                Title
+              </th>
+              <th className="text-left py-3 px-5 text-xs font-semibold text-purple-500 uppercase tracking-wider">
+                Artist
+              </th>
+              <th className="text-left py-3 px-5 text-xs font-semibold text-purple-500 uppercase tracking-wider">
+                Category
+              </th>
+              <th className="text-left py-3 px-5 text-xs font-semibold text-purple-500 uppercase tracking-wider">
+                Price
+              </th>
+              <th className="text-left py-3 px-5 text-xs font-semibold text-purple-500 uppercase tracking-wider">
+                Status
+              </th>
+              <th className="text-right py-3 px-5 text-xs font-semibold text-purple-500 uppercase tracking-wider">
+                Actions
+              </th>
             </tr>
           </thead>
           <tbody>
-            {artItems.map((item) => (
-              <tr key={item.id} className="border-b border-purple-50 hover:bg-purple-50/30 transition-colors">
-                <td className="py-3.5 px-5 text-sm font-medium text-purple-800">{item.title}</td>
-                <td className="py-3.5 px-5 text-sm text-purple-500">{item.artist}</td>
-                <td className="py-3.5 px-5 text-sm text-purple-500">{item.category}</td>
-                <td className="py-3.5 px-5 text-sm font-medium text-purple-700">{item.price}</td>
+            {artworks.map((item) => (
+              <tr
+                key={item.id}
+                className="border-b border-purple-50 hover:bg-purple-50/30 transition-colors"
+              >
+                <td className="py-3.5 px-5 text-sm font-medium text-purple-800">
+                  <div className="flex items-center gap-3">
+                    {item.image_url && (
+                      <img
+                        src={item.image_url}
+                        alt={item.title}
+                        className="w-8 h-8 rounded-lg object-cover"
+                      />
+                    )}
+                    {item.title}
+                  </div>
+                </td>
+                <td className="py-3.5 px-5 text-sm text-purple-500">
+                  {item.artist}
+                </td>
+                <td className="py-3.5 px-5 text-sm text-purple-500">
+                  {item.category}
+                </td>
+                <td className="py-3.5 px-5 text-sm font-medium text-purple-700">
+                  {formatPrice(item.price)}
+                </td>
                 <td className="py-3.5 px-5">
                   <button
-                    onClick={() => toggleStatus(item.id)}
+                    onClick={() => handleToggleStatus(item.id)}
                     className={`text-xs font-medium px-3 py-1 rounded-full cursor-pointer border-0 ${
                       item.status === "Published"
                         ? "bg-green-100 text-green-700"
@@ -171,6 +283,16 @@ function Admin() {
                 </td>
               </tr>
             ))}
+            {artworks.length === 0 && (
+              <tr>
+                <td
+                  colSpan={6}
+                  className="py-12 text-center text-purple-400 text-sm"
+                >
+                  No artworks yet. Click &quot;Add Artwork&quot; to get started.
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
