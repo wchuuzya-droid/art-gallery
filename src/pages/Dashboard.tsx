@@ -5,31 +5,33 @@ import {
   Image,
   ArrowUpRight,
   ArrowDownRight,
+  Loader2,
 } from "lucide-react";
+import { useTopArtworks } from "../hooks/useArtworks";
+import { useActivityLog, useSiteStats, formatTimeAgo } from "../hooks/useDashboard";
 
-const stats = [
-  { label: "Total Revenue", value: "$24,500", change: "+12.5%", up: true, icon: DollarSign },
-  { label: "Page Views", value: "18,240", change: "+8.2%", up: true, icon: Eye },
-  { label: "Artworks Listed", value: "156", change: "+3", up: true, icon: Image },
-  { label: "Conversion Rate", value: "3.2%", change: "-0.4%", up: false, icon: TrendingUp },
-];
-
-const recentActivity = [
-  { action: "New artwork added", detail: "Violet Horizon by Maya Chen", time: "2 hours ago" },
-  { action: "Sale completed", detail: "Ethereal Dreams - $1,800", time: "5 hours ago" },
-  { action: "New inquiry", detail: "From collector James W.", time: "8 hours ago" },
-  { action: "Exhibit updated", detail: "Spring Collection 2026", time: "1 day ago" },
-  { action: "New artist registered", detail: "Sofia Laurent - Photography", time: "2 days ago" },
-];
-
-const topArtworks = [
-  { title: "Marble Whisper", artist: "Takeshi Mori", views: 1240, sales: 3 },
-  { title: "Violet Horizon", artist: "Maya Chen", views: 980, sales: 5 },
-  { title: "Neon Pulse", artist: "David Kim", views: 870, sales: 8 },
-  { title: "Golden Hour", artist: "Sofia Laurent", views: 650, sales: 2 },
-];
+const statIcons: Record<string, typeof DollarSign> = {
+  "Total Revenue": DollarSign,
+  "Page Views": Eye,
+  "Artworks Listed": Image,
+  "Conversion Rate": TrendingUp,
+};
 
 function Dashboard() {
+  const { stats, loading: statsLoading } = useSiteStats();
+  const { activities, loading: activityLoading } = useActivityLog();
+  const { artworks: topArtworks, loading: artworksLoading } = useTopArtworks();
+
+  const loading = statsLoading || activityLoading || artworksLoading;
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-8 h-8 text-purple-400 animate-spin" />
+      </div>
+    );
+  }
+
   return (
     <div>
       <div className="mb-8">
@@ -42,10 +44,10 @@ function Dashboard() {
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
         {stats.map((stat) => {
-          const Icon = stat.icon;
+          const Icon = statIcons[stat.key] ?? TrendingUp;
           return (
             <div
-              key={stat.label}
+              key={stat.key}
               className="bg-white rounded-xl border border-purple-100 p-5"
             >
               <div className="flex items-center justify-between mb-3">
@@ -66,7 +68,7 @@ function Dashboard() {
                 </span>
               </div>
               <p className="text-2xl font-bold text-purple-800">{stat.value}</p>
-              <p className="text-xs text-purple-400 mt-1">{stat.label}</p>
+              <p className="text-xs text-purple-400 mt-1">{stat.key}</p>
             </div>
           );
         })}
@@ -79,9 +81,9 @@ function Dashboard() {
             Recent Activity
           </h2>
           <div className="space-y-4">
-            {recentActivity.map((item, i) => (
+            {activities.map((item) => (
               <div
-                key={i}
+                key={item.id}
                 className="flex items-start gap-3 pb-4 border-b border-purple-50 last:border-0 last:pb-0"
               >
                 <div className="w-2 h-2 rounded-full bg-purple-400 mt-2 shrink-0" />
@@ -94,10 +96,15 @@ function Dashboard() {
                   </p>
                 </div>
                 <span className="text-xs text-purple-300 shrink-0">
-                  {item.time}
+                  {formatTimeAgo(item.created_at)}
                 </span>
               </div>
             ))}
+            {activities.length === 0 && (
+              <p className="text-sm text-purple-400 text-center py-4">
+                No recent activity
+              </p>
+            )}
           </div>
         </div>
 
@@ -123,7 +130,7 @@ function Dashboard() {
             <tbody>
               {topArtworks.map((art) => (
                 <tr
-                  key={art.title}
+                  key={art.id}
                   className="border-b border-purple-50 last:border-0"
                 >
                   <td className="py-3">
@@ -140,6 +147,16 @@ function Dashboard() {
                   </td>
                 </tr>
               ))}
+              {topArtworks.length === 0 && (
+                <tr>
+                  <td
+                    colSpan={3}
+                    className="py-8 text-center text-purple-400 text-sm"
+                  >
+                    No artworks yet
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
